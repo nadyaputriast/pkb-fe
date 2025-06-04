@@ -1,10 +1,21 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
-import { ClockIcon } from "@heroicons/react/16/solid";
+import { ClockIcon, TrashIcon } from "@heroicons/react/16/solid";
 
 export default function Section1({
-  query, setQuery, handleKeyUp, handleSearch, loading, history, showHistory, setShowHistory,
-  error, result, setSelectedMovie, setShowModal
+  query,
+  setQuery,
+  handleKeyUp,
+  handleSearch,
+  handleClearHistory,
+  loading,
+  history,
+  showHistory,
+  setShowHistory,
+  error,
+  result,
+  setSelectedMovie,
+  setShowModal,
 }) {
   return (
     <div className="p-6 w-full bg-gray-800 rounded-lg shadow-lg mb-8">
@@ -31,24 +42,43 @@ export default function Section1({
               {history.length === 0 ? (
                 <li className="p-2 text-gray-400">No History Available</li>
               ) : (
-                history.map((item, index) => (
-                  <li
-                    key={index}
-                    className="p-2 hover:bg-gray-700 cursor-pointer text-white"
-                    onClick={() => {
-                      setQuery(item);
-                      handleSearch(item);
-                      setShowHistory(false);
-                    }}
-                  >
-                    {item}
-                  </li>
-                ))
+                <>
+                  {history.map((item, index) => (
+                    <li
+                      key={index}
+                      className="flex items-center justify-between p-2 hover:bg-gray-700 cursor-pointer text-white"
+                    >
+                      <span
+                        onClick={() => {
+                          setQuery(item);
+                          handleSearch(item);
+                          setShowHistory(false);
+                        }}
+                        className="flex-1"
+                      >
+                        {item}
+                      </span>
+                      {index === 0 && (
+                        <button
+                          title="Clear History"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleClearHistory();
+                          }}
+                          className="ml-2 p-1 rounded hover:bg-red-700 transition"
+                        >
+                          <TrashIcon className="w-5 h-5 text-red-400" />
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </>
               )}
             </ul>
           )}
         </div>
       </div>
+      {/* Tombol Clear History di bawah input/history dihapus, karena sudah ada di list */}
       <button
         className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
         onClick={() => handleSearch(query)}
@@ -56,9 +86,7 @@ export default function Section1({
       >
         {loading ? "Loading..." : "Get Recommendation"}
       </button>
-      {error && (
-        <div className="mt-4 text-red-400 text-center">{error}</div>
-      )}
+      {error && <div className="mt-4 text-red-400 text-center">{error}</div>}
       {loading && (
         <div className="mt-6 text-center">
           <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>

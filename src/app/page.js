@@ -22,6 +22,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [deletedHistory, setDeletedHistory] = useState([]); // Tambahan
   const [error, setError] = useState(null);
   const [selectedMovie, setSelectedMovie] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -36,9 +37,9 @@ export default function Home() {
   // Responsive: set moviesPerPage sesuai device
   useEffect(() => {
     function handleResize() {
-      if (window.innerWidth < 640) setMoviesPerPage(12); // phone
-      else if (window.innerWidth < 1024) setMoviesPerPage(30); // tablet
-      else setMoviesPerPage(60); // desktop
+      if (window.innerWidth < 640) setMoviesPerPage(4); // phone
+      else if (window.innerWidth < 1024) setMoviesPerPage(12); // tablet
+      else setMoviesPerPage(16); // desktop
     }
     handleResize();
     window.addEventListener("resize", handleResize);
@@ -50,20 +51,30 @@ export default function Home() {
     setCurrentPage(1);
   }, [filterYear, filterMonth, filterRating, filterVotes]);
 
-  // Ambil history
+  // Ambil history dari backend setiap kali showHistory dibuka atau setelah search
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch("http://localhost:5001/api/history");
-        if (!response.ok) throw new Error("Failed to fetch history");
-        const data = await response.json();
-        setHistory(data);
-      } catch (error) {
-        setHistory([]);
-      }
-    };
-    fetchData();
+    if (showHistory) {
+      fetchHistory();
+    }
+  }, [showHistory]);
+
+  // Ambil history dari backend saat pertama kali load
+  useEffect(() => {
+    fetchHistory();
   }, []);
+
+  // Fungsi untuk fetch history dari backend
+  const fetchHistory = async () => {
+    try {
+      const response = await fetch("http://localhost:5001/api/history");
+      if (!response.ok) throw new Error("Failed to fetch history");
+      const data = await response.json();
+      // Filter history yang sudah dihapus di UI
+      setHistory(data.filter((q) => !deletedHistory.includes(q)));
+    } catch (error) {
+      setHistory([]);
+    }
+  };
 
   // Ambil film sesuai filter tahun & bulan
   useEffect(() => {
@@ -86,21 +97,31 @@ export default function Home() {
   }, [filterYear, filterMonth]);
 
   // Filter & sort hasil fetch sesuai filter rating, votes, dan urut tanggal
-  const moviesToShow = useMemo(() => (
-    filteredMovies
-      .filter((m) =>
-        filterRating ? m.vote_average && m.vote_average >= parseFloat(filterRating) : true
-      )
-      .filter((m) =>
-        filterVotes ? m.vote_count && m.vote_count >= parseInt(filterVotes) : true
-      )
-      .sort((a, b) => {
-        // Urutkan dari tanggal 1 ke akhir bulan
-        const ad = a.release_date ? parseInt(a.release_date.split("-")[2]) : 0;
-        const bd = b.release_date ? parseInt(b.release_date.split("-")[2]) : 0;
-        return ad - bd;
-      })
-  ), [filteredMovies, filterRating, filterVotes]);
+  const moviesToShow = useMemo(
+    () =>
+      filteredMovies
+        .filter((m) =>
+          filterRating
+            ? m.vote_average && m.vote_average >= parseFloat(filterRating)
+            : true
+        )
+        .filter((m) =>
+          filterVotes
+            ? m.vote_count && m.vote_count >= parseInt(filterVotes)
+            : true
+        )
+        .sort((a, b) => {
+          // Urutkan dari tanggal 1 ke akhir bulan
+          const ad = a.release_date
+            ? parseInt(a.release_date.split("-")[2])
+            : 0;
+          const bd = b.release_date
+            ? parseInt(b.release_date.split("-")[2])
+            : 0;
+          return ad - bd;
+        }),
+    [filteredMovies, filterRating, filterVotes]
+  );
 
   // PAGINATION LOGIC
   const totalPages = Math.ceil(moviesToShow.length / moviesPerPage);
@@ -112,7 +133,8 @@ export default function Home() {
   // Helper: generate tahun dan bulan untuk dropdown (SSR-safe)
   const yearOptions = useMemo(() => {
     const arr = [];
-    const nowYear = typeof window !== "undefined" ? new Date().getFullYear() : 2025;
+    const nowYear =
+      typeof window !== "undefined" ? new Date().getFullYear() : 2025;
     for (let y = nowYear; y >= 1980; y--) arr.push(y.toString());
     return arr;
   }, []);
@@ -159,9 +181,9 @@ export default function Home() {
                 </li>
                 <li>
                   <strong>Genres:</strong>{" "}
-                  {Array.isArray(selectedMovie.genre_names)
-                    ? selectedMovie.genre_names.join(", ")
-                    : selectedMovie.genre_names}
+                  {Array.isArray(selectedMovie.genre_name)
+                    ? selectedMovie.genre_name.join(", ")
+                    : selectedMovie.genre_name}
                 </li>
                 <li>
                   <strong>Rating:</strong> {selectedMovie.vote_average}/10
@@ -181,7 +203,7 @@ export default function Home() {
                       "overview",
                       "poster_path",
                       "release_date",
-                      "genre_names",
+                      "genre_name",
                       "vote_average",
                       "vote_count",
                       "runtime",
@@ -256,6 +278,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: q.trim() }),
       });
+
       let data;
       try {
         data = await response.json();
@@ -273,9 +296,11 @@ export default function Home() {
         throw new Error("Invalid response format from server");
       }
       setResult(data);
-      if (q.trim() && !history.includes(q.trim())) {
-        setHistory((prevHistory) => [q.trim(), ...prevHistory.slice(0, 9)]);
-      }
+
+      // Jika prompt yang dihapus di-search lagi, hapus dari deletedHistory
+      setDeletedHistory((prev) => prev.filter((item) => item !== q.trim()));
+      // Fetch history, filter yang sudah dihapus
+      fetchHistory();
     } catch (error) {
       setError(
         error.message || "Failed to fetch recommendations. Please try again."
@@ -292,11 +317,17 @@ export default function Home() {
     }
   };
 
-  // Fungsi hapus history untuk Section1
-  const handleClearHistory = () => {
+  // Fungsi hapus history untuk Section1 (hapus satu query saja)
+  const handleDeleteHistoryItem = (q) => {
+    setDeletedHistory((prev) => [...prev, q]);
+    setHistory((prev) => prev.filter((item) => item !== q));
+  };
+
+  // Fungsi hapus semua history (opsional, jika ada tombol clear all)
+  const handleClearHistory = async () => {
+    setDeletedHistory((prev) => [...prev, ...history]);
     setHistory([]);
-    // Jika ingin hapus di backend juga, bisa fetch DELETE ke endpoint history di sini
-    // fetch("http://localhost:5001/api/history", { method: "DELETE" });
+    setShowHistory(false);
   };
 
   // Jangan render sebelum tahun/bulan siap (SSR-safe)
@@ -321,6 +352,7 @@ export default function Home() {
           setSelectedMovie={setSelectedMovie}
           setShowModal={setShowModal}
           handleClearHistory={handleClearHistory}
+          handleDeleteHistoryItem={handleDeleteHistoryItem} // Tambahkan ini ke Section1
         />
         <Section2
           filterYear={filterYear}
