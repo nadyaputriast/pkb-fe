@@ -1,13 +1,12 @@
 import React from "react";
+import { ClockIcon, TrashIcon } from "@heroicons/react/24/outline";
 import ReactMarkdown from "react-markdown";
-import { ClockIcon, TrashIcon } from "@heroicons/react/16/solid";
 
 export default function Section1({
   query,
   setQuery,
   handleKeyUp,
   handleSearch,
-  handleClearHistory,
   loading,
   history,
   showHistory,
@@ -16,6 +15,8 @@ export default function Section1({
   result,
   setSelectedMovie,
   setShowModal,
+  handleClearHistory,
+  handleDeleteHistoryItem,
 }) {
   return (
     <div className="p-6 w-full bg-gray-800 rounded-lg shadow-lg mb-8">
@@ -58,27 +59,37 @@ export default function Section1({
                       >
                         {item}
                       </span>
-                      {index === 0 && (
-                        <button
-                          title="Clear History"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleClearHistory();
-                          }}
-                          className="ml-2 p-1 rounded hover:bg-red-700 transition"
-                        >
-                          <TrashIcon className="w-5 h-5 text-red-400" />
-                        </button>
-                      )}
+                      <button
+                        title="Delete this history"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteHistoryItem(item);
+                        }}
+                        className="ml-2 p-1 rounded hover:bg-red-700 transition"
+                      >
+                        <TrashIcon className="w-5 h-5 text-red-400" />
+                      </button>
                     </li>
                   ))}
+                  {history.length > 1 && (
+                    <li className="flex justify-center mt-2">
+                      <button
+                        className="text-xs text-red-400 hover:underline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleClearHistory();
+                        }}
+                      >
+                        Clear All History
+                      </button>
+                    </li>
+                  )}
                 </>
               )}
             </ul>
           )}
         </div>
       </div>
-      {/* Tombol Clear History di bawah input/history dihapus, karena sudah ada di list */}
       <button
         className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
         onClick={() => handleSearch(query)}

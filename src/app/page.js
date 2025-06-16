@@ -22,7 +22,22 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
-  const [deletedHistory, setDeletedHistory] = useState([]); // Tambahan
+
+  // === Perubahan utama: deletedHistory di localStorage ===
+  const [deletedHistory, setDeletedHistory] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("deletedHistory");
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("deletedHistory", JSON.stringify(deletedHistory));
+    }
+  }, [deletedHistory]);
+
   const [error, setError] = useState(null);
   const [selectedMovie, setSelectedMovie] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -56,11 +71,12 @@ export default function Home() {
     if (showHistory) {
       fetchHistory();
     }
-  }, [showHistory]);
+  }, [showHistory, deletedHistory]); // depend on deletedHistory
 
   // Ambil history dari backend saat pertama kali load
   useEffect(() => {
     fetchHistory();
+    // eslint-disable-next-line
   }, []);
 
   // Fungsi untuk fetch history dari backend
@@ -299,7 +315,6 @@ export default function Home() {
 
       // Jika prompt yang dihapus di-search lagi, hapus dari deletedHistory
       setDeletedHistory((prev) => prev.filter((item) => item !== q.trim()));
-      // Fetch history, filter yang sudah dihapus
       fetchHistory();
     } catch (error) {
       setError(
@@ -319,13 +334,25 @@ export default function Home() {
 
   // Fungsi hapus history untuk Section1 (hapus satu query saja)
   const handleDeleteHistoryItem = (q) => {
-    setDeletedHistory((prev) => [...prev, q]);
+    setDeletedHistory((prev) => {
+      const updated = [...prev, q];
+      if (typeof window !== "undefined") {
+        localStorage.setItem("deletedHistory", JSON.stringify(updated));
+      }
+      return updated;
+    });
     setHistory((prev) => prev.filter((item) => item !== q));
   };
 
   // Fungsi hapus semua history (opsional, jika ada tombol clear all)
   const handleClearHistory = async () => {
-    setDeletedHistory((prev) => [...prev, ...history]);
+    setDeletedHistory((prev) => {
+      const updated = [...prev, ...history];
+      if (typeof window !== "undefined") {
+        localStorage.setItem("deletedHistory", JSON.stringify(updated));
+      }
+      return updated;
+    });
     setHistory([]);
     setShowHistory(false);
   };
@@ -352,7 +379,7 @@ export default function Home() {
           setSelectedMovie={setSelectedMovie}
           setShowModal={setShowModal}
           handleClearHistory={handleClearHistory}
-          handleDeleteHistoryItem={handleDeleteHistoryItem} // Tambahkan ini ke Section1
+          handleDeleteHistoryItem={handleDeleteHistoryItem}
         />
         <Section2
           filterYear={filterYear}
