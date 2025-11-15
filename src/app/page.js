@@ -91,7 +91,7 @@ export default function Home() {
       setLoadingThisMonth(true);
       try {
         const response = await fetch(
-          `http://localhost:5001/api/movies?year=${filterYear}&month=${filterMonth}`
+          `https://nadyaputriast-pkb-be-movie.hf.space/api/movies?year=${filterYear}&month=${filterMonth}`
         );
         const data = await response.json();
         setFilteredMovies(data);
@@ -186,7 +186,7 @@ export default function Home() {
     setError(null);
     
     try {
-      const response = await fetch("http://localhost:5001/api/query", {
+      const response = await fetch("https://nadyaputriast-pkb-be-movie.hf.space/api/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: q.trim() }),
